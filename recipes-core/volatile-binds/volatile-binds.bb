@@ -11,11 +11,14 @@ SRC_URI = "\
 
 inherit allarch systemd
 
-VOLATILE_BINDS ?= "\
-    /var/volatile/lib /var/lib\n\
-    /var/volatile/root-home ${ROOT_HOME}\n\
-    /var/volatile/media /media\n\
+volatiledir ?= "${localstatedir}/volatile"
+VOLATILE_BIND_FILES ?= "${volatiledir}/etc/resolv.conf /etc/resolv.conf\n"
+VOLATILE_BIND_DIRS ?= "\
+    ${volatiledir}/lib /var/lib\n\
+    ${volatiledir}/root-home ${ROOT_HOME}\n\
+    ${volatiledir}/media /media\n\
 "
+VOLATILE_BINDS = "${VOLATILE_BIND_DIRS}\n${VOLATILE_BIND_FILES}"
 VOLATILE_BINDS[type] = "list"
 VOLATILE_BINDS[separator] = "\n"
 
@@ -33,18 +36,43 @@ SYSTEMD_SERVICES = "${@volatile_systemd_services(d)}"
 DEPENDS += "${@'systemd-systemctl-native' if 'systemd' in DISTRO_FEATURES.split() else ''}"
 FILES_${PN} += "${systemd_unitdir}/system/*.service"
 
+generate_service_file () {
+    spec="$1"
+    mountpoint="$2"
+    isfile="$3"
+    servicefile="${spec#/}"
+    servicefile="${servicefile//\//-}.service"
+
+    if [ -n "$isfile" ]; then
+        rodir="${mountpoint%/*}"
+    else
+        rodir="$mountpoint"
+    fi
+
+    sed -e "s#@what@#$spec#g; s#@where@#$mountpoint#g" \
+        -e "s#@rwdir@#${volatiledir}#g; s#@rodir@#$rodir#g" \
+        ${WORKDIR}/volatile-binds.service.in >$servicefile
+}
+
 do_compile () {
     while read spec mountpoint; do
         if [ -z "$spec" ]; then
             continue
         fi
 
-        servicefile="${spec#/}"
-        servicefile="${servicefile//\//-}.service"
-        sed -e "s#@what@#$spec#g; s#@where@#$mountpoint#g" \
-            volatile-binds.service.in >$servicefile
+        generate_service_file "$spec" "$mountpoint"
     done <<END
-${@VOLATILE_BINDS.replace("\\n", "\n")}
+${@VOLATILE_BIND_DIRS.replace("\\n", "\n")}
+END
+
+    while read spec mountpoint; do
+        if [ -z "$spec" ]; then
+            continue
+        fi
+
+        generate_service_file "$spec" "$mountpoint" "true"
+    done <<END
+${@VOLATILE_BIND_FILES.replace("\\n", "\n")}
 END
 
     if [ -e var-volatile-lib.service ]; then

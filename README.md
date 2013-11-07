@@ -44,6 +44,8 @@ Usage
     EXTRA_IMAGE_FEATURES += "read-only-rootfs"
 
 If the default writable areas (/var/lib, /home/root, and /media) are
-insufficient, you can add additional bind mount directories. For example:
+insufficient, you can add additional bind mounts, either for directories or
+for files. For example, add this to local.conf to make /etc/rsyncd.conf
+writable:
 
-    VOLATILE_BINDS_append = "/var/volatile/www /www\n"
+    VOLATILE_BINDS_append = "/var/volatile/etc/rsyncd.conf /etc/rsyncd.conf\n"

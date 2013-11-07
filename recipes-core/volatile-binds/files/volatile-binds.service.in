@@ -3,8 +3,8 @@ Description=Bind mount volatile @where@
 DefaultDependencies=false
 Before=local-fs.target
 RequiresMountsFor=@what@ @where@
-ConditionPathIsReadWrite=@what@
-ConditionPathIsReadWrite=!@where@
+ConditionPathIsReadWrite=@rwdir@
+ConditionPathIsReadWrite=!@rodir@
 
 [Service]
 Type=oneshot
